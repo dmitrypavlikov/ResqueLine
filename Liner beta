@@ -1,0 +1,117 @@
+#include <QTRSensors.h>
+int echoPin = 1;
+int trigPin = 2;
+
+
+#define leftmotor_dir 45
+#define leftmotor_spd 44
+#define rightmotor_dir 47
+#define rightmotor_spd 46
+QTRSensors qtr;
+const uint8_t SensorCount = 8;
+uint16_t sensorValues[SensorCount];
+int spd = 60;
+int line = qtr.calibrationOn.minimum[4];
+int sV[SensorCount];
+int k;
+
+
+
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+ // pinMode(13, HIGH);
+  qtr.setTypeAnalog();
+  qtr.setSensorPins((const uint8_t[]) {
+    A0, A1, A2, A3, A4, A5, A6, A7
+  }, SensorCount);
+  qtr.setEmitterPin(2);
+  pinMode(leftmotor_dir, OUTPUT);
+  pinMode(leftmotor_spd, OUTPUT);
+  pinMode(rightmotor_dir, OUTPUT);
+  pinMode(rightmotor_spd, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+
+
+/*delay(200);
+  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(leftmotor_dir, HIGH);
+      analogWrite(leftmotor_spd, spd);
+      digitalWrite(rightmotor_dir, HIGH);
+      analogWrite(rightmotor_spd, spd);
+      for (uint16_t i = 0; i < 15; i++)
+  {
+    qtr.calibrate();
+
+  }digitalWrite(leftmotor_dir, LOW);
+      analogWrite(leftmotor_spd, spd);
+      digitalWrite(rightmotor_dir, LOW);
+      analogWrite(rightmotor_spd, spd);
+   for (uint16_t i = 0; i < 30; i++)
+  {  
+    qtr.calibrate();
+
+  }digitalWrite(leftmotor_dir, HIGH);
+      analogWrite(leftmotor_spd, spd);//
+      digitalWrite(rightmotor_dir, HIGH);
+      analogWrite(rightmotor_spd, spd);
+    
+    for (uint16_t i = 0; i < 15; i++)
+  {
+qtr.calibrate();
+  }
+  analogWrite(leftmotor_spd, spd-spd);
+   analogWrite(rightmotor_spd, spd-spd);
+   delay(200);
+*/
+}
+
+float Sensor(){
+  float duration, cm;
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  cm = duration / 58;
+  Serial.print(cm);
+  Serial.println(" cm");
+  delay(100);
+  return cm;
+}
+
+void Move(bool Left, bool Right, int spd_L, int spd_R){
+  Left = not Left;
+  digitalWrite(leftmotor_dir, Left);
+  analogWrite(leftmotor_spd, spd_L);
+  digitalWrite(rightmotor_dir, Right);
+  analogWrite(rightmotor_spd, spd_R);
+}
+
+void loop() {
+ ///////////////////////////////////
+ //LeftMotor LOW - вперёд
+ //RightMotor HIGH - вперед7
+   digitalWrite(LED_BUILTIN, LOW);
+  qtr.read(sensorValues);
+  for (int i = 0; i < SensorCount; i++)
+  {
+    sV[i] = sensorValues[i];
+    Serial.print(sV[i]);
+    Serial.print('\t');
+  }
+  Serial.println(); 
+  
+  Move(1,1,60,60);
+  Sensor();
+  Serial.print("[2J");
+  }
+
+  
+  
+  
+ 
+
