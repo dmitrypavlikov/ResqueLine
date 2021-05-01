@@ -10,8 +10,8 @@ QTRSensors qtr;
 const uint8_t SensorCount = 8;
 uint16_t sensorValues[SensorCount];
 int spd = 0;
-int errors[8];//Массив с ошибкой для каждого датчика (потому что они не идеальные, и у всех разная ошибка)
-int input_err;//Общая ошибка после обработки
+int input_err = 0;//Общая ошибка после обработки
+int OUT = 0;//Переменная, в которую будут поступать данные из ПИДа. Просто для удобства, можно удалить.
 
 //int lastFlag, currentFlag;
 
@@ -51,20 +51,10 @@ void setup() {
        qtr.calibrate();
        delay(500);
     }
-  uint8_t local_k= -4; //Число от -4 до +4 (без нуля), на которое домножаем ошибку с каждого датчика слева направо [-4,-3,-2,-1,+1,+2,+3,+4].
-  for(uint8_t i = 0; i<7;i++){
-    errors[i] = (qtr.calibrationOn.maximum[i]+qtr.calibrationOn.minimum[i])/2 * local_k;
-    input_err+= errors[i];//Сразу складываем в общую ошибку, которая будет поступать на вход ПИДа гайвера.
-    local_k++;
-    if (local_k == 0){
-      local_k++;// Ноль пропустили
-    }
-  }
 }
-//PID(input_err, setpoint = 0, kp, ki, kd, минимум ошибки (образно -1000), максимум ошибки (1000))
-int PID(int input, float setpoint, float kp, float ki, float kd, float dt, int minOut, int maxOut) {
+int PID(int input, int setpoint, float kp, float ki, float kd, float dt, int minOut, int maxOut) {
   float err = setpoint - input;
-  static float integral = 0, prevErr = 0;
+  float integral = 0, prevErr = 0;
   integral = constrain(integral + (float)err * dt * ki, minOut, maxOut);
   float D = (err - prevErr) / dt;
   prevErr = err;
@@ -72,8 +62,19 @@ int PID(int input, float setpoint, float kp, float ki, float kd, float dt, int m
 }
 
 void loop() {
+  int8_t local_k = -4; //Число от -4 до +4 (без нуля), на которое домножаем ошибку с каждого датчика слева направо [-4,-3,-2,-1,+1,+2,+3,+4].
+  for(uint8_t i = 0; i<7;i++){
+    input_err += ((qtr.calibrationOn.maximum[i]+qtr.calibrationOn.minimum[i])/2 - sensorValues[i]) * local_k;
+    local_k++;
+    if (local_k == 0){
+      local_k++;// Ноль пропустили
+    }
+  }
+   
    qtr.read(sensorValues);
-   moving(1,1,spd+PID(),spd-PID());
+   //PID(input, setpoint, kp, ki, kd, минимум ошибки, максимум ошибки)
+   OUT = PID(input_err, 0, 1, 1, 1, 0.05, -1000, 1000)
+   moving(1,1,spd+OUT,spd-OUT);
 
   
   
