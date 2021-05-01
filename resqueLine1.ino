@@ -72,7 +72,7 @@ void loop() {
   }
    
    qtr.read(sensorValues);
-   //PID(input, setpoint, kp, ki, kd, минимум ошибки, максимум ошибки)
+   //PID(input, setpoint, kp, ki, kd, dt, минимум ошибки, максимум ошибки)
    OUT = PID(input_err, 0, 1, 1, 1, 0.05, -1000, 1000)
    moving(1,1,spd+OUT,spd-OUT);
 
