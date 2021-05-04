@@ -1,23 +1,30 @@
 #include <QTRSensors.h>
 
 //Моторы в бане
-//#define leftmotor_dir 44 
-//#define leftmotor_spd 45
-//#define rightmotor_dir 46
-//#define rightmotor_spd 47
+#define leftmotor_dir 44 
+#define leftmotor_spd 45
+#define rightmotor_dir 46
+#define rightmotor_spd 47
 
 QTRSensors qtr;
 const uint8_t SensorCount = 8;
-uint16_t sensorValues[SensorCount];
-int spd = 0;
-int input_err = 0;//Общая ошибка после обработки
-int OUT = 0;//Переменная, в которую будут поступать данные из ПИДа. Просто для удобства, можно удалить.
+int sensorValues[SensorCount];
+int spd = 60;
+
+
+int err = 0;
+float integral = 0;
+float lastErr = 0;
+float kp = 1;
+float ki = 1;
+float kd = 1;
+float dt = 0.05;
+float OUT = 0;//Переменная, в которую будут поступать данные из ПИДа. Просто для удобства, можно удалить.
 
 //int lastFlag, currentFlag;
 
 //Функция движения, остаётся просто для примера ниже.
 void moving (bool Left, bool Right, int spd_L, int spd_R){
-  //Left = not Left;
   digitalWrite(leftmotor_dir, Left);
   analogWrite(leftmotor_spd, spd_L);
   digitalWrite(rightmotor_dir, Right);
@@ -34,10 +41,10 @@ void setup() {
   qtr.setEmitterPin(2);
 
   //Моторы в бане
-  //pinMode(leftmotor_dir, OUTPUT);
-  //pinMode(leftmotor_spd, OUTPUT);
-  //pinMode(rightmotor_dir, OUTPUT);
-  //pinMode(rightmotor_spd, OUTPUT);
+  pinMode(leftmotor_dir, OUTPUT);
+  pinMode(leftmotor_spd, OUTPUT);
+  pinMode(rightmotor_dir, OUTPUT);
+  pinMode(rightmotor_spd, OUTPUT);
   
   pinMode(LED_BUILTIN, OUTPUT);//Лампочка на плате для удобного отслеживания процесса калибровки.
   
@@ -52,30 +59,55 @@ void setup() {
        delay(500);
     }
 }
-int PID(int input, int setpoint, float kp, float ki, float kd, float dt, int minOut, int maxOut) {
+/*int PID(int input, int setpoint, float kp, float ki, float kd, float dt, int minOut, int maxOut) {
   float err = setpoint - input;
   float integral = 0, prevErr = 0;
   integral = constrain(integral + (float)err * dt * ki, minOut, maxOut);
   float D = (err - prevErr) / dt;
   prevErr = err;
-  return constrain(err * kp + integral + D * kd, minOut, maxOut);
-}
+  //return constrain(err * kp + integral + D * kd, minOut, maxOut);
+  return err * kp + integral + D * kd;
+}*/
 
 void loop() {
-  int8_t local_k = -4; //Число от -4 до +4 (без нуля), на которое домножаем ошибку с каждого датчика слева направо [-4,-3,-2,-1,+1,+2,+3,+4].
-  for(uint8_t i = 0; i<7;i++){
-    input_err += ((qtr.calibrationOn.maximum[i]+qtr.calibrationOn.minimum[i])/2 - sensorValues[i]) * local_k;
+  //digitalWrite(LED_BUILTIN, HIGH);
+  int local_k = -4; //Число от -4 до +4 (без нуля), на которое домножаем ошибку с каждого датчика слева направо [-4,-3,-2,-1,+1,+2,+3,+4].
+  err = 0;
+  for(uint8_t i = 0; i<8;i++){
+    //int tmp = (qtr.calibrationOn.maximum[i]+qtr.calibrationOn.minimum[i])/2;
+    /*if(sensorValues[i]<tmp){
+      sensorValues[i]=0;
+    }
+    else{
+      sensorValues[i]=1;
+    }*/
+    //Serial.print(((qtr.calibrationOn.maximum[i]+qtr.calibrationOn.minimum[i])/2 - sensorValues[i]) * local_k);
+    //Serial.print(" ");
+    err += ((qtr.calibrationOn.maximum[i]+qtr.calibrationOn.minimum[i])/2 - sensorValues[i]) * local_k;
     local_k++;
     if (local_k == 0){
-      local_k++;// Ноль пропустили
+      local_k=1;// Ноль пропустили
     }
+    //Serial.print(sensorValues[i]);
+    //Serial.print(" ");
   }
+  Serial.println();
    
    qtr.read(sensorValues);
-   //PID(input, setpoint, kp, ki, kd, dt, минимум ошибки, максимум ошибки)
-   OUT = PID(input_err, 0, 1, 1, 1, 0.05, -1000, 1000)
+   
+   //ПИД
+   err = 0 - err;
+   integral = constrain(integral + err * dt * ki, -1000, 1000);
+   float D = (err - lastErr) / dt;
+   lastErr = err;
+   OUT = constrain(err * kp + integral + D * kd, -1000, 1000);
    moving(1,1,spd+OUT,spd-OUT);
 
+
+  Serial.print(err);
+  Serial.print(" ");
+  Serial.print(OUT);
+  Serial.println();
   
   
 /* if(sV[i]<tmp){
@@ -84,8 +116,8 @@ void loop() {
     else{
       sV[i]=1;
     }*/
-    Serial.print(sV[i]);
-    Serial.print('\t');
+//    Serial.print(sV[i]);
+  //  Serial.print('\t');
   }
 /*
 if((sV[3]==1)||(sV[4]==1)){
@@ -148,5 +180,5 @@ if(sV[0]==1){
   //Serial.print('-');
   //Serial.print(currentFlag);
   //Serial.print(' ');
-  Serial.println(); 
-  }
+//  Serial.println(); 
+//  }
